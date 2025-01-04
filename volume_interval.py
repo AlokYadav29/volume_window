@@ -119,4 +119,5 @@ if not os.path.exists(save_path):
     os.makedirs(save_path)
 file_name = os.path.join(save_path, f"{file_name}_.csv")
 ohlc.to_csv(file_name, index=False)
-    
+
+print("finished")
