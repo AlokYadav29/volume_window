@@ -9,7 +9,7 @@ df = pd.read_csv(file_path, low_memory = False)
 df.columns = df.columns.str.lower()
 # Ensure the timestamp column is in datetime format
 df['time'] = pd.to_datetime(df['timestamp']).dt.time
-
+df['date'] = pd.to_datetime(df['date'],format="%Y-%m-%d")
 volume_interval = 20000
 
 loop_count = round(((df['ltq'].sum()/volume_interval)/1)*1)
@@ -44,22 +44,25 @@ df['volume_id'] = ((df['ltq_cumsum'] - 1 )// volume_interval).astype(int) + 1
 
 # Group by the volume interval and calculate OHLC
 ohlc = df.groupby('volume_id').agg({
+    'date' : ['first'],
     'vtt' : ['first','last'],
-    'time': ['first','last'],  # Start time of the interval
+    'time': ['first','last'],  # Start and end time of the interval
     'ltp': ['first', 'max', 'min', 'last'],  # OHLC for price
-    'cumm_sum': ['first','max','min','last'],
+    'cumm_sum': ['first','max','min','last'], # OHLC of the cummulative sum
     'sig_cumm_sum': ['first','max','min','last'],
     'cumm_sum_w.r.t_hl': ['first','last'],
     'sig_cumm_sum_w.r.t_hl': ['first','last'],
-    'ltq': 'sum'  # Total volume in the interval
+    'ltq': 'sum',  # Total volume in the interval
+    'signal': [('positive_signals', lambda x: (x > 0).sum()),  # Count of positive signals
+               ('negative_signals', lambda x: (x < 0).sum())]  # Count of negative signals
+    
 })
 
-# # Flatten MultiIndex columns
-# ohlc.columns = ['svtt','evtt','stime', 'etime','open', 'high', 'low', 'close','scum_sum','ecum_sum','ssig_cumm_sum','esig_cumm_sum', 'total_volume']
 # Flatten the MultiIndex columns
 ohlc.columns = ['_'.join(col).strip() for col in ohlc.columns]
 
 ohlc.rename(columns={
+                'date_first' : 'date',
                 'vtt_first' : 's_vtt',
                 'vtt_last' : 'e_vtt',
                 'time_first' : 's_time',
@@ -80,7 +83,9 @@ ohlc.rename(columns={
                 'cumm_sum_w.r.t_hl_last' : 'e_cumm_sum_w.r.t_hl',
                 'sig_cumm_sum_w.r.t_hl_first' : 's_sig_cumm_sum_w.r.t_hl',   
                 'sig_cumm_sum_w.r.t_hl_last' : 'e_sig_cumm_sum_w.r.t_hl',               
-                'ltq_sum' : 'total_volume'
+                'ltq_sum' : 'total_volume',
+                'signal_positive_signals' : 'positive_signals' ,
+                'signal_negative_signals' : 'negative_signals'
             }, inplace=True)
 
 ohlc['e_time'] = pd.to_datetime(ohlc['e_time'],format="%H:%M:%S.%f")
@@ -100,8 +105,8 @@ ohlc['%_change'] = ((ohlc['close'] - ohlc['open'])/ohlc['open'])*100
 # Reset index for readability
 ohlc.reset_index(inplace=True)
 
-columns = ['total_volume','s_vtt', 'e_vtt','net_vtt', 's_time', 'e_time','net_time_seconds', 'open', 'high',
-       'low', 'close','%_change', 'o_cum_sum', 'h_cum_sum', 'l_cum_sum', 'c_cum_sum','net_cum_sum',
+columns = ['date','total_volume','s_vtt', 'e_vtt','net_vtt', 's_time', 'e_time','net_time_seconds', 'open', 'high',
+       'low', 'close','%_change','positive_signals','negative_signals', 'o_cum_sum', 'h_cum_sum', 'l_cum_sum', 'c_cum_sum','net_cum_sum',
        'o_sig_cum_sum', 'h_sig_cum_sum', 'l_sig_cum_sum', 'c_sig_cum_sum','net_sig_cum_sum',
        's_cumm_sum_w.r.t_hl', 'e_cumm_sum_w.r.t_hl', 's_sig_cumm_sum_w.r.t_hl',
        'e_sig_cumm_sum_w.r.t_hl'
@@ -119,5 +124,4 @@ if not os.path.exists(save_path):
     os.makedirs(save_path)
 file_name = os.path.join(save_path, f"{file_name}_.csv")
 ohlc.to_csv(file_name, index=False)
-
-print("finished_work")
+    
