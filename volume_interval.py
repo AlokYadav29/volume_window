@@ -113,9 +113,6 @@ columns = ['date','total_volume','s_vtt', 'e_vtt','net_vtt', 's_time', 'e_time',
     ]
 ohlc = ohlc[columns]
 
-print(ohlc)
-
-
 # file_path1 = r'D:\stock_cash_tbt_data'
 file_path1 = r'F:\mansukh\project-bhartiairtel_tbt_data_cash'
 save_path = os.path.join(file_path1)
